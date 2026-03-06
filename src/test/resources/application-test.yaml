@@ -1,0 +1,7 @@
+# Prevent kafka starting during test
+spring:
+  kafka:
+    listener:
+      auto-startup: false
+    admin:
+      enabled: false

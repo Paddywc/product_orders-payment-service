@@ -3,11 +3,13 @@ package product.orders.paymentservice.domain.model;
 import jakarta.persistence.*;
 
 import java.time.Instant;
+import java.util.Currency;
 import java.util.UUID;
 
 @Entity
 @Table(
         name = "payment",
+        // Only one payment per order
         uniqueConstraints = {
                 @UniqueConstraint(
                         name = "uk_payment_order",
@@ -22,14 +24,16 @@ public class Payment {
     private UUID paymentId;
 
     @Column(name = "order_id", nullable = false, updatable = false)
-    private String orderId;
+    private UUID orderId;
 
-    @Column(name="amount_cents", nullable = false)
+    /**
+     * Amount in cents (or the smallest unit of the currency)
+     */
+    @Column(name = "amount_cents", nullable = false)
     private long amountInCents;
 
-    @Column(nullable = false)
-    @Enumerated(EnumType.STRING)
-    private CurrencyCode currency;
+    @Column(nullable = false, length = 3, name = "currency_code")
+    private Currency currency;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, name = "payment_status")
@@ -38,7 +42,7 @@ public class Payment {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    @Column
+    @Column(name = "updated_at")
     private Instant updatedAt;
 
     @Version
@@ -49,12 +53,13 @@ public class Payment {
 
     /**
      * Create a payment with the pending status for the given order.
-     * @param orderId the id of the oder
-     * @param amountInCents the amount in cents
-     * @param currency the currency code for the currency the payment is in
+     *
+     * @param orderId       the id of the oder
+     * @param amountInCents the amount in cents (or smallest unit of the currency)
+     * @param currency      the currency code for the currency the payment is in
      * @return the created payment
      */
-    public static Payment createPendingPayment(String orderId, long amountInCents, CurrencyCode currency) {
+    public static Payment createPendingPayment(UUID orderId, long amountInCents, Currency currency) {
         Payment payment = new Payment();
         payment.paymentId = UUID.randomUUID();
         payment.orderId = orderId;
@@ -62,6 +67,7 @@ public class Payment {
         payment.currency = currency;
         payment.status = PaymentStatus.PENDING;
         payment.createdAt = Instant.now();
+        payment.updatedAt = Instant.now();
         return payment;
     }
 
@@ -71,7 +77,7 @@ public class Payment {
         return paymentId;
     }
 
-    public String getOrderId() {
+    public UUID getOrderId() {
         return orderId;
     }
 
@@ -79,7 +85,7 @@ public class Payment {
         return amountInCents;
     }
 
-    public CurrencyCode getCurrency() {
+    public Currency getCurrency() {
         return currency;
     }
 
@@ -115,20 +121,27 @@ public class Payment {
             );
         }
         this.status = PaymentStatus.COMPLETED;
+        this.updatedAt = Instant.now();
     }
 
-    public void fail(String reason) {
+
+    /**
+     * Mark the payment as failed. Will throw an error if the payment is already completed.
+     */
+    public void fail() {
         if (status == PaymentStatus.FAILED) {
             return; // idempotent
         }
         if (status == PaymentStatus.COMPLETED) {
-            throw new IllegalStateException(
-                    "Cannot fail a completed payment"
-            );
+            throw new IllegalStateException("Cannot fail a completed payment");
         }
         this.status = PaymentStatus.FAILED;
+        this.updatedAt = Instant.now();
     }
 
+    /**
+     * Refund the payment. Will throw an error if the payment is not completed.
+     */
     public void refund() {
         if (status == PaymentStatus.REFUNDED) {
             return; // idempotent
@@ -139,5 +152,6 @@ public class Payment {
             );
         }
         this.status = PaymentStatus.REFUNDED;
+        this.updatedAt = Instant.now();
     }
 }

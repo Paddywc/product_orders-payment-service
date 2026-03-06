@@ -4,25 +4,29 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Emitted when a payment has failed.
+ * Emitted when payment has been successfully refunded
  * <p>
- * This event is terminal for the payment saga and is used
- * by downstream services to perform compensation actions.
+ * This event exists outside the Saga and is emitted by the payment service when a payment refund fails.
  */
-public record PaymentFailedEvent(UUID eventId, UUID orderId, String reason, Instant occurredAt) {
+public record PaymentRefundFailedEvent(
+        UUID eventId,
+        UUID orderId,
+        String reason,
+        Instant occurredAt
 
-    public PaymentFailedEvent {
+) {
+
+    public PaymentRefundFailedEvent {
         if (eventId == null) {
             throw new IllegalArgumentException("eventId must not be null");
         }
         if (orderId == null) {
             throw new IllegalArgumentException("orderId must not be null");
         }
-
     }
 
-    public static PaymentFailedEvent of(UUID orderId, String reason) {
-        return new PaymentFailedEvent(
+    public static PaymentRefundFailedEvent of(UUID orderId, String reason) {
+        return new PaymentRefundFailedEvent(
                 UUID.randomUUID(),
                 orderId,
                 reason,
